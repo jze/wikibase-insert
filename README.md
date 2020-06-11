@@ -16,6 +16,17 @@ However, if you do this without a transaction it is still terrible slow. In my s
 ## Steps to run the experiment
 
 - Download the `docker-compose.yml` file from https://github.com/wmde/wikibase-docker
+- Expose port 3306 from the MariaDB container by inserting two lines:
+
+```yaml
+  mysql:
+    image: mariadb:10.3
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    volumes:
+```
+
 - Start the containers: `docker-compose up`
 - Create a new item http://localhost:8181/wiki/Special:NewItem  with an English label `test entry`.
 - Create a new property http://localhost:8181/wiki/Special:NewProperty with an English label `instance of` and data type `Item`.
