@@ -27,7 +27,13 @@ However, if you do this without a transaction it is still terrible slow. In my s
     volumes:
 ```
 
-- Start the containers: `docker-compose up`
+- Start the containers: `docker-compose up` and wait until you see lines ending like:
+
+```
+[main] INFO  o.w.q.r.t.change.RecentChangesPoller - Got no real changes
+[main] INFO  org.wikidata.query.rdf.tool.Updater - Sleeping for 10 secs
+```
+
 - Create a new item http://localhost:8181/wiki/Special:NewItem  with an English label `test entry`.
 - Create a new property http://localhost:8181/wiki/Special:NewProperty with an English label `instance of` and data type `Item`.
 - Create a new property http://localhost:8181/wiki/Special:NewProperty with an English label `my property` and data type `External identifier`.
