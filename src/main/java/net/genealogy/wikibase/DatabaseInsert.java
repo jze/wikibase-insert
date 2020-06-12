@@ -124,7 +124,7 @@ public class DatabaseInsert {
             pstmtInsertText = connection.prepareStatement("INSERT INTO text VALUES(?,?,'utf-8')");
             pstmtInsertPage = connection.prepareStatement("INSERT INTO page VALUES(?,120,?,'',0,0,rand(1),?,?,?,?,'wikibase-item',NULL)");
             pstmtInsertComment = connection.prepareStatement("INSERT INTO comment VALUES(?,?,?,NULL)");
-            pstmtInsertContent = connection.prepareStatement("INSERT INTO content VALUES( ? ,?,?, 1, ?)");
+            pstmtInsertContent = connection.prepareStatement("INSERT INTO content VALUES( ? ,?,?, 2, ?)");
         } else {
             pstmtInsertText = connection.prepareStatement("INSERT INTO text VALUES(?,?,'utf-8')", Statement.RETURN_GENERATED_KEYS);
             pstmtInsertPage = connection.prepareStatement("INSERT INTO page VALUES(?,120,?,'',0,0,rand(1),?,?,?,?,'wikibase-item',NULL)", Statement.RETURN_GENERATED_KEYS);
