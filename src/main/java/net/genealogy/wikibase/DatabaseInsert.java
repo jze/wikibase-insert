@@ -39,6 +39,8 @@ public class DatabaseInsert {
     Map<String, Long> timer = new HashMap<>();
     int count = 0;
     private PreparedStatement pstmtSelectItem;
+    private PreparedStatement pstmtInsertRecentChanges;
+
     /**
      * Do not read ids from the database for every item. Assign them once and assume no other process writes to the
      * database.
@@ -139,6 +141,7 @@ public class DatabaseInsert {
         pstmtUpdateWbIdCounters = connection.prepareStatement("UPDATE wb_id_counters SET id_value=? WHERE id_type='wikibase-item'");
         pstmtSelectLastItemId = connection.prepareStatement("SELECT id_value  AS next_id from wb_id_counters where id_type = 'wikibase-item'");
         pstmtSelectItem = connection.prepareStatement("SELECT * FROM page WHERE page_namespace=120 AND page_title=?");
+        pstmtInsertRecentChanges = connection.prepareStatement("INSERT INTO recentchanges VALUES ( 0,?,0,'',?,120,?,?,0,0,1,?,?,0,1,'mw.new',0,'127.0.0.1',0,?,0,0,NULL,'',''  )");
 
         if (preselectIds) {
             ResultSet rs = pstmtSelectLastItemId.executeQuery();
@@ -317,6 +320,15 @@ public class DatabaseInsert {
         pstmtInsertSlots.setLong(2, contentId);
         pstmtInsertSlots.setLong(3, textId);
         executeUpdate(pstmtInsertSlots);
+
+        pstmtInsertRecentChanges.setString(1, timestamp);
+        pstmtInsertRecentChanges.setInt(2, ACTOR);
+        pstmtInsertRecentChanges.setString(3, itemId);
+        pstmtInsertRecentChanges.setLong(4, commentId);
+        pstmtInsertRecentChanges.setLong(5, textId);
+        pstmtInsertRecentChanges.setLong(6, textId);
+        pstmtInsertRecentChanges.setInt(7, data.length());
+        executeUpdate(pstmtInsertRecentChanges);
 
         pstmtUpdateWbIdCounters.setInt(1, lastQNumber);
         executeUpdate(pstmtUpdateWbIdCounters);
