@@ -12,9 +12,7 @@ import java.math.BigInteger;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
 import java.util.Locale;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -24,28 +22,25 @@ public class DatabaseInsert {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseInsert.class);
     private final static int ACTOR = 1;
-    PreparedStatement pstmtInsertText;
-    PreparedStatement pstmtInsertPage;
-    PreparedStatement pstmtInsertRevision;
-    PreparedStatement pstmtInsertComment;
-    PreparedStatement pstmtInsertRevisionComment;
-    PreparedStatement pstmtInsertRevisionActor;
-    PreparedStatement pstmtInsertContent;
-    PreparedStatement pstmtInsertSlots;
-    PreparedStatement pstmtUpdateWbIdCounters;
-    PreparedStatement pstmtSelectLastItemId;
-    Connection connection;
-    PrintWriter sqlout;
-    Map<String, Long> timer = new HashMap<>();
-    int count = 0;
-    private PreparedStatement pstmtSelectItem;
-    private PreparedStatement pstmtInsertRecentChanges;
-
+    private final Connection connection;
+    private final PrintWriter sqlout;
     /**
      * Do not read ids from the database for every item. Assign them once and assume no other process writes to the
      * database.
      */
-    private boolean preselectIds = true;
+    private final boolean preselectIds = true;
+    private PreparedStatement pstmtInsertText;
+    private PreparedStatement pstmtInsertPage;
+    private PreparedStatement pstmtInsertRevision;
+    private PreparedStatement pstmtInsertComment;
+    private PreparedStatement pstmtInsertRevisionComment;
+    private PreparedStatement pstmtInsertRevisionActor;
+    private PreparedStatement pstmtInsertContent;
+    private PreparedStatement pstmtInsertSlots;
+    private PreparedStatement pstmtUpdateWbIdCounters;
+    private PreparedStatement pstmtSelectLastItemId;
+    private PreparedStatement pstmtSelectItem;
+    private PreparedStatement pstmtInsertRecentChanges;
     private int lastQNumber = 0;
     private long textId;
     private long pageId;
@@ -68,6 +63,18 @@ public class DatabaseInsert {
     }
 
     public void destroy() throws Exception {
+        pstmtInsertText.close();
+        pstmtInsertPage.close();
+        pstmtInsertRevision.close();
+        pstmtInsertComment.close();
+        pstmtInsertRevisionComment.close();
+        pstmtInsertRevisionActor.close();
+        pstmtInsertContent.close();
+        pstmtInsertSlots.close();
+        pstmtUpdateWbIdCounters.close();
+        pstmtSelectLastItemId.close();
+        pstmtSelectItem.close();
+        pstmtInsertRecentChanges.close();
         connection.close();
         sqlout.close();
     }

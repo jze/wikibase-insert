@@ -33,6 +33,7 @@ public class Performance {
         self.runWithoutTransaction(100);
         self.runWithTransaction(10000);
         di.destroy();
+        System.exit(0);
     }
 
     private void runWithoutTransaction(final int numberOfItems) throws SQLException {
