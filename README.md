@@ -37,6 +37,6 @@ However, if you do this without a transaction it is still terrible slow. In my s
 - Create a new item http://localhost:8181/wiki/Special:NewItem  with an English label `test entry`.
 - Create a new property http://localhost:8181/wiki/Special:NewProperty with an English label `instance of` and data type `Item`.
 - Create a new property http://localhost:8181/wiki/Special:NewProperty with an English label `my property` and data type `External identifier`.
-- Run the Java program: `mvn exec:java`
+- Run the Java program: `mvn compile exec:java`
 
 For me it took a minute to insert 100 items without a transaction and 25 seconds to insert 10,000 items with a transction.
