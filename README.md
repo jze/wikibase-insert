@@ -30,3 +30,9 @@ You need [Docker Compose](https://docs.docker.com/compose/).
 - Compile and run the Java program: `mvn compile exec:java`
 
 For me it took a minute to insert 100 items without a transaction and 25 seconds to insert 10,000 items with a transction.
+
+## MySQL JDBC driver
+
+It seems that the MySQL JDBC driver has a significant influence on the performance. I have tried the old 5.1.49 and the new 8.0.20 version of the driver. I ran 10 experiments with each driver. This boxplot shows the number of inserted items per minute:
+
+![Boxplot showing a comparison of measured insert performance. With the new 8.0.20 driver an average of 20,000 items per minute is inserted. With the old 5.1.49 driver an average of 26,000 items per minute is inserted.](boxplot.png)
