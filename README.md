@@ -15,17 +15,7 @@ However, if you do this without a transaction it is still terrible slow. In my s
 
 ## Steps to run the experiment
 
-- Download the `docker-compose.yml` file from https://github.com/wmde/wikibase-docker
-- Expose port 3306 from the MariaDB container by inserting two lines:
-
-```yaml
-  mysql:
-    image: mariadb:10.3
-    restart: unless-stopped
-    ports:
-      - "3306:3306"
-    volumes:
-```
+You need [Docker Compose](https://docs.docker.com/compose/).
 
 - Start the containers: `docker-compose up` and wait until you see lines ending like:
 
@@ -37,6 +27,6 @@ However, if you do this without a transaction it is still terrible slow. In my s
 - Create a new item http://localhost:8181/wiki/Special:NewItem  with an English label `test entry`.
 - Create a new property http://localhost:8181/wiki/Special:NewProperty with an English label `instance of` and data type `Item`.
 - Create a new property http://localhost:8181/wiki/Special:NewProperty with an English label `my property` and data type `External identifier`.
-- Run the Java program: `mvn compile exec:java`
+- Compile and run the Java program: `mvn compile exec:java`
 
 For me it took a minute to insert 100 items without a transaction and 25 seconds to insert 10,000 items with a transction.
