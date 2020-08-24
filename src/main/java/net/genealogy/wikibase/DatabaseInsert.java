@@ -46,6 +46,7 @@ public class DatabaseInsert {
     private long pageId;
     private long commentId;
     private long contentId;
+    private int contentModelItem;
 
     public DatabaseInsert(Connection con) throws SQLException, IOException {
         this.connection = con;
@@ -90,24 +91,35 @@ public class DatabaseInsert {
         in.close();
     }
 
-    private int findFirstTermByLabel(String type, Locale language, String name) throws SQLException {
-        PreparedStatement pstmt = connection.prepareStatement("SELECT min(substring(term_full_entity_id,2)) FROM wb_terms WHERE term_language=? AND term_entity_type=? AND term_type='label' AND term_text=?");
+    private int findFirstTermByLabelAndDescription(String type, Locale language, String label, String description) throws SQLException {
+        PreparedStatement pstmt = connection.prepareStatement(
+                "SELECT min(substring(a.term_full_entity_id,2)) " +
+                        " FROM wb_terms a, wb_terms b" +
+                        " WHERE a.term_language=? AND a.term_entity_type=? AND a.term_type='label' AND a.term_text=? " +
+                        " AND a.term_entity_id = b.term_entity_id" +
+                        " AND b.term_language=? AND b.term_type='description' AND b.term_text=?");
+
         pstmt.setString(1, language.toLanguageTag());
         pstmt.setString(2, type);
-        pstmt.setString(3, name);
-        ResultSet rs = pstmt.executeQuery();
-
-        int termNumber;
-
-        if (rs.next()) {
-            termNumber = rs.getInt(1);
-        } else {
-            termNumber = 0;
-        }
-
+        pstmt.setString(3, label);
+        pstmt.setString(4, language.toLanguageTag());
+        pstmt.setString(5, description);
+        final ResultSet rs = pstmt.executeQuery();
+        final int termNumber = rs.next() ? rs.getInt(1) : 0;
         rs.close();
         pstmt.close();
+        return termNumber;
+    }
 
+    private int findFirstTermByLabel(String type, Locale language, String label) throws SQLException {
+        final PreparedStatement pstmt = connection.prepareStatement("SELECT min(substring(term_full_entity_id,2)) FROM wb_terms WHERE term_language=? AND term_entity_type=? AND term_type='label' AND term_text=?");
+        pstmt.setString(1, language.toLanguageTag());
+        pstmt.setString(2, type);
+        pstmt.setString(3, label);
+        final ResultSet rs = pstmt.executeQuery();
+        final int termNumber = rs.next() ? rs.getInt(1) : 0;
+        rs.close();
+        pstmt.close();
         return termNumber;
     }
 
@@ -119,13 +131,18 @@ public class DatabaseInsert {
         connection.commit();
     }
 
-    int findPropertyByLabel(Locale language, String name) throws SQLException {
-        return findFirstTermByLabel("property", language, name);
+    int findPropertyByLabel(Locale language, String label) throws SQLException {
+        return findFirstTermByLabel("property", language, label);
     }
 
-    int findItemByLabel(Locale language, String name) throws SQLException {
-        return findFirstTermByLabel("item", language, name);
+    int findItemByLabel(Locale language, String label) throws SQLException {
+        return findFirstTermByLabel("item", language, label);
     }
+
+    int findItemByLabelAndDescription(Locale language, String label, String description) throws SQLException {
+        return findFirstTermByLabelAndDescription("item", language, label, description);
+    }
+
 
     private void prepareDatabaseConnection() throws SQLException {
 
@@ -133,12 +150,12 @@ public class DatabaseInsert {
             pstmtInsertText = connection.prepareStatement("INSERT INTO text VALUES(?,?,'utf-8')");
             pstmtInsertPage = connection.prepareStatement("INSERT INTO page VALUES(?,120,?,'',0,0,rand(1),?,?,?,?,'wikibase-item',NULL)");
             pstmtInsertComment = connection.prepareStatement("INSERT INTO comment VALUES(?,?,?,NULL)");
-            pstmtInsertContent = connection.prepareStatement("INSERT INTO content VALUES( ? ,?,?, 2, ?)");
+            pstmtInsertContent = connection.prepareStatement("INSERT INTO content VALUES( ? ,?,?, ?, ?)");
         } else {
             pstmtInsertText = connection.prepareStatement("INSERT INTO text VALUES(?,?,'utf-8')", Statement.RETURN_GENERATED_KEYS);
             pstmtInsertPage = connection.prepareStatement("INSERT INTO page VALUES(?,120,?,'',0,0,rand(1),?,?,?,?,'wikibase-item',NULL)", Statement.RETURN_GENERATED_KEYS);
             pstmtInsertComment = connection.prepareStatement("INSERT INTO comment VALUES(?,?,?,NULL)", Statement.RETURN_GENERATED_KEYS);
-            pstmtInsertContent = connection.prepareStatement("INSERT INTO content VALUES( ? ,?,?, 2, ?)", Statement.RETURN_GENERATED_KEYS);
+            pstmtInsertContent = connection.prepareStatement("INSERT INTO content VALUES( ? ,?,?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
         }
 
         pstmtInsertRevisionComment = connection.prepareStatement("INSERT INTO revision_comment_temp VALUES (?,?)");
@@ -185,6 +202,14 @@ public class DatabaseInsert {
 
             stmt.close();
         }
+
+        ResultSet rs = connection.createStatement().executeQuery("SELECT model_id FROM content_models WHERE model_name='wikibase-item'");
+        if( rs.next()) {
+            contentModelItem = rs.getInt(1);
+        } else {
+            throw new RuntimeException("Missing entry for 'wikibase-item' in table 'content_models'.") ;
+        }
+
     }
 
     /**
@@ -226,11 +251,13 @@ public class DatabaseInsert {
             json.put("id", itemId);
 
             // All statements also need this ID
-            final JSONObject claims = json.getJSONObject("claims");
-            for (String claim : claims.keySet()) {
-                final JSONArray list = claims.getJSONArray(claim);
-                for (int i = 0; i < list.length(); i++) {
-                    list.getJSONObject(i).put("id", itemId + "$" + UUID.randomUUID().toString());
+            if( json.has("claims")) {
+                final JSONObject claims = json.getJSONObject("claims");
+                for (String claim : claims.keySet()) {
+                    final JSONArray list = claims.getJSONArray(claim);
+                    for (int i = 0; i < list.length(); i++) {
+                        list.getJSONObject(i).put("id", itemId + "$" + UUID.randomUUID().toString());
+                    }
                 }
             }
         }
@@ -308,7 +335,8 @@ public class DatabaseInsert {
 
         pstmtInsertContent.setInt(2, data.length());
         pstmtInsertContent.setString(3, sha1base36(data));
-        pstmtInsertContent.setString(4, "tt:" + textId);
+        pstmtInsertContent.setInt(4, contentModelItem);
+        pstmtInsertContent.setString(5, "tt:" + textId);
 
         if (preselectIds) {
             contentId++;
