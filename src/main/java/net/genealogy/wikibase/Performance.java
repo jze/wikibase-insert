@@ -1,24 +1,40 @@
 package net.genealogy.wikibase;
 
+import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.time.StopWatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.wikidata.wdtk.datamodel.helpers.PropertyDocumentBuilder;
+import org.wikidata.wdtk.datamodel.implementation.DatatypeIdImpl;
+import org.wikidata.wdtk.datamodel.interfaces.PropertyDocument;
+import org.wikidata.wdtk.datamodel.interfaces.PropertyIdValue;
+import org.wikidata.wdtk.wikibaseapi.BasicApiConnection;
+import org.wikidata.wdtk.wikibaseapi.LoginFailedException;
+import org.wikidata.wdtk.wikibaseapi.WikibaseDataEditor;
+import org.wikidata.wdtk.wikibaseapi.apierrors.MediaWikiApiErrorException;
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
+import static org.wikidata.wdtk.datamodel.implementation.DatatypeIdImpl.JSON_DT_EXTERNAL_ID;
+import static org.wikidata.wdtk.datamodel.implementation.DatatypeIdImpl.JSON_DT_ITEM;
+
 @RequiredArgsConstructor
 public class Performance {
+    private final static String siteIri = "http://www.test.wikidata.org/entity/";
 
     private final DatabaseInsert databaseInsert;
     private final Logger log = LoggerFactory.getLogger(Performance.class);
     private int propertyInstanceOf;
     private int itemTestEntry;
     private int propertyMyProperty;
+    private WikibaseDataEditor wbde;
 
     public static void main(String[] args) throws Exception {
         Connection connection = DriverManager.getConnection(
@@ -29,6 +45,9 @@ public class Performance {
         DatabaseInsert di = new DatabaseInsert(connection);
         Performance self = new Performance(di);
 
+        BasicApiConnection wikibaseConnection = new BasicApiConnection("http://localhost:8181/w/api.php");
+        wikibaseConnection.login("WikibaseAdmin", "WikibaseDockerAdminPass");
+        self.wbde = new WikibaseDataEditor(wikibaseConnection, siteIri);
         self.createPropertiesAndItems();
         self.runWithoutTransaction(100);
         self.runWithTransaction(10000);
@@ -79,46 +98,44 @@ public class Performance {
                 "}";
     }
 
-    private void createPropertiesAndItems() throws SQLException {
-        propertyInstanceOf = databaseInsert.findPropertyByLabel(Locale.ENGLISH, "instance of");
-        if (propertyInstanceOf == 0) {
+    private int createPropertyIfNecessary(WikibaseDataEditor wbde, String englishLabel, String datatype) throws SQLException, IOException, MediaWikiApiErrorException {
+        int propertyId = databaseInsert.findPropertyByLabel(Locale.ENGLISH, englishLabel);
+        if (propertyId == 0) {
+            final PropertyDocument newProperty =
+                    PropertyDocumentBuilder.forPropertyIdAndDatatype(PropertyIdValue.NULL, DatatypeIdImpl.getDatatypeIriFromJsonDatatype(datatype))
+                            .withLabel(englishLabel, "en")
+                            .build();
 
-            System.err.println("Create a new property http://localhost:8181/wiki/Special:NewProperty with an English label 'instance of' and data type 'Item'.");
-            System.exit(2);
-
-            // TODO this does not work, yet
-            // String json = "{\"type\":\"property\",\"datatype\":\"wikibase-item\",\"labels\":{\"en\":{\"language\":\"en\",\"value\":\"instance of\"}},\"descriptions\":[],\"aliases\":[],\"claims\":[]}";
-            //String id = databaseInsert.createProperty(json);
-            //propertyInstanceOf = Integer.parseInt(id.substring(1));
-        } else {
-            log.debug("Using P" + propertyInstanceOf + " as the instance-of property.");
+            try {
+                wbde.createPropertyDocument(newProperty,
+                        "property for performance test",
+                        Collections.emptyList());
+            } catch (ValueInstantiationException ignore) {
+                // The response cannot be parsed correctly
+            }
         }
+        return databaseInsert.findPropertyByLabel(Locale.ENGLISH, englishLabel);
+    }
 
-        propertyMyProperty = databaseInsert.findPropertyByLabel(Locale.ENGLISH, "my property");
-        if (propertyMyProperty == 0) {
-            System.err.println("Create a new property http://localhost:8181/wiki/Special:NewProperty with an English label 'my property' and data type 'External identifier'.");
-            System.exit(2);
+    private void createPropertiesAndItems() throws SQLException, LoginFailedException, IOException, MediaWikiApiErrorException {
 
-            // TODO this does not work, yet
-            //  String json = "{\"type\":\"property\",\"datatype\":\"external-id\",\"labels\":{\"en\":{\"language\":\"en\",\"value\":\"my property\"}},\"descriptions\":[],\"aliases\":[],\"claims\":[]}";
-            //  String id = databaseInsert.createProperty(json);
-            //  propertyMyProperty = Integer.parseInt(id.substring(1));
-        } else {
-            log.debug("Using P" + propertyMyProperty + " as the data property.");
-        }
+
+        propertyInstanceOf = createPropertyIfNecessary(wbde, "instance of", JSON_DT_ITEM);
+        log.debug("Using P" + propertyInstanceOf + " as the instance-of property.");
+
+        propertyMyProperty = createPropertyIfNecessary(wbde, "my property", JSON_DT_EXTERNAL_ID);
+        log.debug("Using P" + propertyMyProperty + " as the data property.");
+
+        databaseInsert.afterPropertiesSet();
 
         itemTestEntry = databaseInsert.findItemByLabel(Locale.ENGLISH, "test entry");
         if (itemTestEntry == 0) {
-
-            System.err.println("Create a new item http://localhost:8181/wiki/Special:NewItem  with an English label 'test entry'.");
-
-            // TODO this does not work, yet
-            //String json = "{\"type\":\"item\",\"labels\":{\"de\":{\"language\":\"en\",\"value\":\"test entry\"}},\"descriptions\":{\"en\":{\"language\":\"en\",\"value\":\"type\"}},\"aliases\":[],\"claims\":[],\"sitelinks\":[]}";
-            //String itemId = databaseInsert.createItem(json);
-            //itemTestEntry = Integer.parseInt(itemId.substring(1));
-        } else {
-            log.debug("Using Q" + itemTestEntry + " as the type item.");
+            String json = "{\"type\":\"item\",\"labels\":{\"de\":{\"language\":\"en\",\"value\":\"test entry\"}},\"descriptions\":{\"en\":{\"language\":\"en\",\"value\":\"type\"}},\"aliases\":[]}";
+            String itemId = databaseInsert.createItem(json);
+            itemTestEntry = Integer.parseInt(itemId.substring(1));
         }
+        log.debug("Using Q" + itemTestEntry + " as the type item.");
+
     }
 
 }
