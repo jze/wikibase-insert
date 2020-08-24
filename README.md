@@ -24,9 +24,6 @@ You need [Docker Compose](https://docs.docker.com/compose/).
 [main] INFO  org.wikidata.query.rdf.tool.Updater - Sleeping for 10 secs
 ```
 
-- Create a new item http://localhost:8181/wiki/Special:NewItem  with an English label `test entry`.
-- Create a new property http://localhost:8181/wiki/Special:NewProperty with an English label `instance of` and data type `Item`.
-- Create a new property http://localhost:8181/wiki/Special:NewProperty with an English label `my property` and data type `External identifier`.
 - Compile and run the Java program: `mvn compile exec:java`
 
 For me it took a minute to insert 100 items without a transaction and 25 seconds to insert 10,000 items with a transction.
